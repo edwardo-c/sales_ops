@@ -1,0 +1,13 @@
+# Ignore virtual environments
+venv/
+.env/
+
+# Ignore sensitive config
+config/
+
+# Optional: ignore temp files and caches
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.tmp
