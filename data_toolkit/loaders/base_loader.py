@@ -1,4 +1,5 @@
-# used for loading dirty data into a data frame
+# used for loading original data into dataframes
+# creates temporary file for faster upload
 from pathlib import Path
 import tempfile
 import shutil
