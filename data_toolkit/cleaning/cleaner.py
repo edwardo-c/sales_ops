@@ -21,12 +21,16 @@ class Cleaner():
             self.output = cleaned
     
     def _apply_clean(self, df: pd.DataFrame, plan: dict):
+        #TODO: format date columns to isoformat for sql upload
         if plan.get("keep_columns"):
             df = df[plan["keep_columns"]]
 
         if plan.get("rename_columns"):
             df = df.rename(columns=plan["rename_columns"])
-        
+
+        if plan.get("data_types"):
+            df = df.astype(plan["data_types"]).dtypes
+
         return df
 
 

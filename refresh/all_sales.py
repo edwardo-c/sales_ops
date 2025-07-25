@@ -1,4 +1,4 @@
-from config.paths import ALLSALES_2025, ALLSALES_2024
+from config.paths import ALLSALES_2025, ALLSALES_2024, DATABASE, ALL_SALES_LOG
 from data_toolkit.loaders.base_loader import BaseLoader
 from data_toolkit.cleaning.plans import PLAN_DIRECT_SALES_ACU
 from data_toolkit.cleaning.cleaner import Cleaner
@@ -12,9 +12,18 @@ def main():
     cleaner = Cleaner(loader.data, PLAN_DIRECT_SALES_ACU, append=True)
     cleaner.clean()
 
-    print(cleaner.output.head())
-    print(cleaner.output.info())
+    exporter = Exporter(cleaner.output)
+    exporter.to_sql(DATABASE, 'allsales')
+
+    logger = BaseLoader(ALL_SALES_LOG)
+    logger.load_data()
 
 
 if __name__ == "__main__":
     main()
+
+
+'''transformer class ideas:
+unpivot
+break apart into separate groups with group by
+'''
