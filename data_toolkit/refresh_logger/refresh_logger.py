@@ -1,3 +1,4 @@
+from data_toolkit.loaders.base_loader import BaseLoader
 from datetime import datetime
 import pandas as pd
 from pathlib import Path
@@ -23,6 +24,7 @@ class RefreshLogger:
         }
 
         df = pd.read_csv(self.log_path)
-        df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
+        df = BaseLoader._read_temp_file('log', self.log_path)
+        df = pd.concat([df['log'], pd.DataFrame([new_entry])], ignore_index=True)
         df.sort_values(by=['timestamp'],axis=1, ascending=False, inplace=True)
         df.to_csv(self.log_path, index=False)

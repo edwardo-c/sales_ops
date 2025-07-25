@@ -10,7 +10,8 @@ class BaseLoader():
         self.file_map = file_map
         self.data = {}
 
-    def _read_file(self, path: Path, file_meta: dict) -> pd.DataFrame:
+    @staticmethod
+    def _read_file(path: Path, file_meta: dict) -> pd.DataFrame:
         match path.suffix:
             case '.xlsx':
                 return pd.read_excel(
@@ -21,7 +22,8 @@ class BaseLoader():
             case '.csv':
                 return pd.read_csv(path)
             case _:
-                raise ValueError(f"Unsupported file type: {path.suffix}")
+                raise ValueError(f"Unsupported file type: {path.suffix}")    
+        
 
     def load_data(self):
         ''' create a temp copy and read data frame '''
@@ -43,9 +45,21 @@ class BaseLoader():
 
         finally:
             shutil.rmtree(temp_dir)
-    
 
+    @staticmethod
+    def _read_temp_file(alias: str, file_path: Path):
+        if not isinstance(file_path, Path):
+            file_path = Path(file_path)
 
+        # initiate temp directory
+        temp_dir = Path(tempfile.mkdtemp())
 
+        # build temp file path
+        dst_path = temp_dir / file_path
+        
+        # copy over path to temp file
+        shutil.copy2(file_path, dst_path)
 
-    
+        df = self._read_file(dst_path)
+
+        return {alias: df}
