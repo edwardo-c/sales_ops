@@ -23,8 +23,11 @@ class RefreshLogger:
             'notes': notes
         }
 
-        df = pd.read_csv(self.log_path)
-        df = BaseLoader._read_temp_file('log', self.log_path)
-        df = pd.concat([df['log'], pd.DataFrame([new_entry])], ignore_index=True)
-        df.sort_values(by=['timestamp'],axis=1, ascending=False, inplace=True)
+        if not isinstance(self.log_path, Path):
+            self.log_path = Path(self.log_path)
+
+        df_dict = BaseLoader._read_temp_file('log', self.log_path)
+        df = df_dict['log']
+        pd.concat([df['log'], pd.DataFrame([new_entry])], ignore_index=True)
+        df.sort_values(by='timestamp', ascending=False, inplace=True)
         df.to_csv(self.log_path, index=False)

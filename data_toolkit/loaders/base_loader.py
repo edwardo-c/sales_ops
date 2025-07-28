@@ -1,65 +1,77 @@
-# used for loading original data into dataframes
-# creates temporary file for faster upload
+from data_toolkit.logger import logger
 from pathlib import Path
 import tempfile
 import shutil
 import pandas as pd
+import time
 
-class BaseLoader():
+class BaseLoader:
     def __init__(self, file_map):
         self.file_map = file_map
         self.data = {}
 
     @staticmethod
-    def _read_file(path: Path, file_meta: dict) -> pd.DataFrame:
-        match path.suffix:
-            case '.xlsx':
-                return pd.read_excel(
-                    path,
-                    sheet_name=file_meta['sheet_name'],
-                    header=file_meta['row']
-                )
-            case '.csv':
-                return pd.read_csv(path)
-            case _:
-                raise ValueError(f"Unsupported file type: {path.suffix}")    
-        
-
-    def load_data(self):
-        ''' create a temp copy and read data frame '''
-        temp_dir = Path(tempfile.mkdtemp())
-
-        try: 
-            for file in self.file_map:
-                
-                # create path object
-                src_path = Path(file['file'])
-                
-                # build destination path
-                dst_path = temp_dir / src_path.name
-                
-                # create a copy in temp directory
-                shutil.copy2(src_path, dst_path)
-
-            self.data[file['alias']] = self._read_file(dst_path, file)
-
-        finally:
-            shutil.rmtree(temp_dir)
+    def _read_file(path: Path, file_meta: dict = None) -> pd.DataFrame:
+        try:
+            match path.suffix:
+                case '.xlsx':
+                    return pd.read_excel(
+                        path,
+                        sheet_name=file_meta.get('sheet_name'),
+                        header=file_meta.get('row', 0)
+                    )
+                case '.csv':
+                    return pd.read_csv(path)
+                case _:
+                    raise ValueError(f"Unsupported file type: {path.suffix}")
+        except Exception as e:
+            logger.error(f"Failed to read file: {path}", exc_info=True)
+            raise
 
     @staticmethod
-    def _read_temp_file(alias: str, file_path: Path):
-        if not isinstance(file_path, Path):
-            file_path = Path(file_path)
+    def _safe_copy_file(src: Path, dst: Path, retries: int = 3, delay: float = 0.5):
+        for attempt in range(retries):
+            try:
+                logger.debug(f"Attempting to copy {src} to {dst} (Attempt {attempt + 1})")
+                shutil.copy2(src, dst)
+                logger.info(f"Copied {src.name} to temp dir")
+                return
+            except PermissionError:
+                logger.warning(f"PermissionError while copying {src}. Retrying...")
+                time.sleep(delay)
+        logger.error(f"Failed to copy file after {retries} attempts: {src}")
+        raise PermissionError(f"Could not copy {src} after {retries} attempts")
 
-        # initiate temp directory
+    @staticmethod
+    def _read_file_with_temp_copy(file_meta: dict) -> pd.DataFrame:
+        src_path = Path(file_meta['file'])
         temp_dir = Path(tempfile.mkdtemp())
+        dst_path = temp_dir / src_path.name
 
-        # build temp file path
-        dst_path = temp_dir / file_path
-        
-        # copy over path to temp file
-        shutil.copy2(file_path, dst_path)
+        try:
+            BaseLoader._safe_copy_file(src_path, dst_path)
+            df = BaseLoader._read_file(dst_path, file_meta)
+            logger.info(f"Read {dst_path} successfully as alias '{file_meta['alias']}'")
+            return df
+        finally:
+            try:
+                dst_path.unlink(missing_ok=True)
+                temp_dir.rmdir()
+            except Exception as e:
+                logger.warning(f"Could not fully clean up temp file: {dst_path}", exc_info=True)
 
-        df = self._read_file(dst_path)
+    def load_data(self):
+        """Reads and stores all files listed in file_map using a temp copy"""
+        for file_meta in self.file_map:
+            try:
+                df = BaseLoader._read_file_with_temp_copy(file_meta)
+                self.data[file_meta['alias']] = df
+            except Exception as e:
+                logger.error(f"Failed to load data for alias '{file_meta['alias']}'", exc_info=True)
 
+    @staticmethod
+    def _read_temp_file(alias: str, file_path: Path) -> dict:
+        """Backwards-compatible helper for reading a single temp file"""
+        dummy_file_map = {"file": str(file_path), "alias": alias}
+        df = BaseLoader._read_file_with_temp_copy(dummy_file_map)
         return {alias: df}

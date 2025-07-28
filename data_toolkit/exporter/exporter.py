@@ -14,6 +14,7 @@ class Exporter():
             name=table_name,
             con=engine,
             if_exists=if_exists,
+            index=False
         )
     
 

@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import datetime
 
 MAP_VIOLATION = {
     "keep_columns": ['SKU', 'Product', 'URL', 'MAP', 'Price', 'Seller', 'PDF']
@@ -29,6 +30,6 @@ PLAN_DIRECT_SALES_ACU = {
         'product_category': str,
         'qty': float,
         'amount': float,
-        'invoice_date': np.datetime64
+        'invoice_date': 'datetime64[ns]'
     }
 }

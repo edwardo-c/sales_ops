@@ -29,7 +29,7 @@ class Cleaner():
             df = df.rename(columns=plan["rename_columns"])
 
         if plan.get("data_types"):
-            df = df.astype(plan["data_types"]).dtypes
+            df = df.astype(plan["data_types"])
 
         return df
 

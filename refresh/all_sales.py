@@ -1,3 +1,4 @@
+from data_toolkit.logger import logger
 from config.paths import ALLSALES_2025, ALLSALES_2024, DATABASE, ALL_SALES_LOG
 from data_toolkit.refresh_logger.refresh_logger import RefreshLogger
 from data_toolkit.loaders.base_loader import BaseLoader
@@ -7,8 +8,10 @@ from data_toolkit.exporter.exporter import Exporter
 from pathlib import Path
 
 def main():
-    log_path = Path(ALL_SALES_LOG)
-    logger = RefreshLogger(log_path)
+    logger.info(f"running refresh.all_sales.py")
+
+    data_log_path = Path(ALL_SALES_LOG)
+    data_log = RefreshLogger(data_log_path)
 
     try: 
         file_map = [ALLSALES_2025, ALLSALES_2024]
@@ -21,11 +24,13 @@ def main():
         exporter = Exporter(cleaner.output)
         exporter.to_sql(DATABASE, 'allsales')
 
-        logger.log('all_sales', 'success', len(cleaner.output), "June direct, __ pos")
-    
+
+        logger.info(
+            f"all_sales | status=success | rows={len(cleaner.output)} | notes=June direct, __ pos"
+            )
+
     except Exception as e:
-        logger = RefreshLogger(log_path)
-        logger.log('all_sales', 'failed', notes={e})
+        data_log.log('all_sales', 'failed', notes={e})
 
 if __name__ == "__main__":
     main()
