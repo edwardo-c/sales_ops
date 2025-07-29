@@ -1,0 +1,13 @@
+{
+    "_comments": {
+        "intent": "hold excel cell address with title for mapping",
+        "structure": "this is the nested structure for reports"
+    },
+    "_group1": {
+        "A1": "header"
+    },
+    "_group2": {
+        "F1": "current_year_total",
+        "G1": "previous_year_total"
+    }   
+}

@@ -24,10 +24,7 @@ def main():
         exporter = Exporter(cleaner.output)
         exporter.to_sql(DATABASE, 'allsales')
 
-
-        logger.info(
-            f"all_sales | status=success | rows={len(cleaner.output)} | notes=June direct, __ pos"
-            )
+        logger.info(f"all_sales | status=success | rows={len(cleaner.output)}")
 
     except Exception as e:
         data_log.log('all_sales', 'failed', notes={e})
