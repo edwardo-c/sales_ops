@@ -26,5 +26,3 @@ def test_Exporter_groups(example_data):
 
     # test two files exist in temp folder
     assert len(list(dst_dir.glob('**/*csv'))) == 2
-
-# pytest .\tests\test_Exporter.py

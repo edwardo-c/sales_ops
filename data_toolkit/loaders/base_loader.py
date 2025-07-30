@@ -75,3 +75,16 @@ class BaseLoader:
         dummy_file_map = {"file": str(file_path), "alias": alias}
         df = BaseLoader._read_file_with_temp_copy(dummy_file_map)
         return {alias: df}
+    
+    @staticmethod
+    def _single_dataframe_dir_reader(pattern: str, dir: Path):
+        '''
+        reads files from dir and returns a single dataframe 
+        of the files matching the pattern
+        '''
+        # return a list containing all file names
+        files = list(Path(dir).glob(pattern=pattern, case_sensitive=False))
+
+        # read those file names
+        return pd.concat([pd.read_csv(file) for file in files])
+        
