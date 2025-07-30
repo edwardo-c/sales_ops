@@ -5,6 +5,7 @@ venv/
 # Ignore sensitive config
 config/
 
+
 # Optional: ignore temp files and caches
 __pycache__/
 *.pyc
