@@ -4,8 +4,22 @@ import shutil
 import tempfile
 from pandas import DataFrame
 import logging
+import random
 
 logging.basicConfig(level=logging.INFO)
+
+def _generate_test_csvs(col_count: int = 2, row_count: int = 3):
+    return DataFrame(
+        {
+            f"col_{c}": 
+            [random.randint(0,9) for _ in range(row_count)] 
+            for c in range(col_count)
+        }
+    )
+
+def test_folder_to_temp_files():
+    for _ in range(2):
+        ...
 
 def test_single_dataframe_dir_reader():
     
@@ -35,3 +49,4 @@ def test_single_dataframe_dir_reader():
 
     # clean up
     shutil.rmtree(temp_dir)
+

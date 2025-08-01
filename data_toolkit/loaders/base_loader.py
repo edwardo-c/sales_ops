@@ -88,3 +88,17 @@ class BaseLoader:
         # read those file names
         return pd.concat([pd.read_csv(file) for file in files])
         
+    @staticmethod
+    def _folder_to_temp_files(src_dir: Path):
+        '''
+        copies all files into a local temp folder
+        args:
+            src_dir: directory to be copied recursively
+        '''
+        if not Path(src_dir).is_dir():
+            raise ValueError(f"src_dir: {src_dir} is not a directory")
+
+        dst_dir = Path(tempfile.mkdtemp())
+
+        return shutil.copytree(src_dir, dst_dir)
+
