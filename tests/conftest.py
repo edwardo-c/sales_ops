@@ -1,11 +1,12 @@
 import pytest
 from pandas import DataFrame
-import win32com as win32
+import win32com.client as win32
 import logging
 from pathlib import Path
 import tempfile
 from random import randint
 import pandas as pd
+import shutil
 
 logging.basicConfig(level=logging.INFO)
 
@@ -29,7 +30,12 @@ def example_data():
     return DataFrame(data)
 
 
-class TestDataGenerator():
+@pytest.fixture
+def init_gen():
+    with TestFileGenerator() as gen:
+        yield gen
+
+class TestFileGenerator():
     def __init__(self, excel: bool= True, temp_dir: bool= True):
         self.excel = win32.gencache.EnsureDispatch('Excel.Application') if excel else None
         self.temp_dir = Path(tempfile.mkdtemp()) if temp_dir else None
@@ -37,16 +43,23 @@ class TestDataGenerator():
     def __enter__(self):
         return self
     
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         if self.excel:
             self.excel.Quit()
 
-    def _fill_temp_folder_with_csvs(self, csv_count):
-        for _ in range(csv_count):
-            temp_path = self.temp_dir / Path(tempfile.mktemp())
+        if self.temp_dir:
+            shutil.rmtree(self.temp_dir)
+
+    def _fill_temp_folder_with_csvs(self, csv_count: int):
+        '''
+        Creates and saves x amount of csvs
+        csv_count: number of csvs to be saved in temp dir
+        '''
+        for i in range(csv_count):
+            temp_path = self.temp_dir / f'temp_{i}.csv'
             df = self._generate_temp_df()
-            df.to_csv(temp_path)
-                        
+            df.to_csv(temp_path, index=False)
+
     @staticmethod
     def _generate_temp_df(col_count: int= 2, row_count: int= 3) -> pd.DataFrame:
         return pd.DataFrame(
@@ -56,4 +69,3 @@ class TestDataGenerator():
                 for c in range(col_count)
             }
         )
-        
