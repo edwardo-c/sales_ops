@@ -29,7 +29,6 @@ def example_data():
 
     return DataFrame(data)
 
-
 @pytest.fixture
 def init_gen():
     with TestFileGenerator() as gen:
@@ -50,15 +49,41 @@ class TestFileGenerator():
         if self.temp_dir:
             shutil.rmtree(self.temp_dir)
 
-    def _fill_temp_folder_with_csvs(self, csv_count: int):
+    def _fill_temp_folder_with_xl_files(self, file_type: str, file_count: int, sheet_count: int = 2):
         '''
-        Creates and saves x amount of csvs
-        csv_count: number of csvs to be saved in temp dir
+        Creates and saves x amount of {file_type} files.
+        Currently accepts '.csv' and '.xlsx' file type
+        
+        args: 
+            file_type: the type of file to be saved (accepts '.csv' or '.xlsx')
+            file_count: number of files to be saved in temp dir
+            sheet_count: if xlsx, the number of worksheets per workbook
         '''
-        for i in range(csv_count):
-            temp_path = self.temp_dir / f'temp_{i}.csv'
-            df = self._generate_temp_df()
-            df.to_csv(temp_path, index=False)
+        temp_paths = [self.temp_dir / f'temp_{i}{file_type}' for i in range(file_count)]
+        assert len(temp_paths) == 3
+
+        if file_type == '.xlsx':
+            self._generate_xlsx_files(temp_paths, sheet_count)
+
+        if file_type == '.csv':
+            raise NotImplementedError("CSV generation not yet implemented.")
+
+
+
+    def _generate_xlsx_files(self, temp_paths: list, sheet_count: int = 2):
+            
+            if sheet_count > 1:
+                for path in temp_paths:
+                    with pd.ExcelWriter(path) as writer:
+                        for j in range(sheet_count):
+                            df = self._generate_temp_df()
+                            df.to_excel(writer, sheet_name=f'sheet{j}', index=False)
+            elif sheet_count == 1:    
+                for path in temp_paths:
+                    df = self._generate_temp_df()
+                    df.to_excel(path, index=False)
+            else:
+                raise ValueError(f"invalid sheet count: {sheet_count}")
 
     @staticmethod
     def _generate_temp_df(col_count: int= 2, row_count: int= 3) -> pd.DataFrame:

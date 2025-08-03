@@ -53,3 +53,11 @@ def test_single_dataframe_dir_reader():
     # clean up
     shutil.rmtree(temp_dir)
 
+def test_dup_file_load():
+    '''
+    Pass in two file maps with the same file to read from. 
+    BaseLoader should catch that the file is the same 
+    and only copy it to temp once and read from that same file
+    twice (or multiple times)
+    '''
+    
