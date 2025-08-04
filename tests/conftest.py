@@ -1,12 +1,11 @@
 import pytest
-from pandas import DataFrame
 import win32com.client as win32
 import logging
 from pathlib import Path
 import tempfile
 from random import randint
-import pandas as pd
 import shutil
+import pandas as pd
 
 logging.basicConfig(level=logging.INFO)
 
@@ -27,7 +26,7 @@ def example_data():
         ]
     }
 
-    return DataFrame(data)
+    return pd.DataFrame(data)
 
 @pytest.fixture
 def init_gen():
@@ -68,25 +67,42 @@ class TestFileGenerator():
         if file_type == '.csv':
             raise NotImplementedError("CSV generation not yet implemented.")
 
-
-
-    def _generate_xlsx_files(self, temp_paths: list, sheet_count: int = 2):
-            
-            if sheet_count > 1:
-                for path in temp_paths:
-                    with pd.ExcelWriter(path) as writer:
-                        for j in range(sheet_count):
-                            df = self._generate_temp_df()
-                            df.to_excel(writer, sheet_name=f'sheet{j}', index=False)
-            elif sheet_count == 1:    
-                for path in temp_paths:
-                    df = self._generate_temp_df()
-                    df.to_excel(path, index=False)
-            else:
-                raise ValueError(f"invalid sheet count: {sheet_count}")
+    def _generate_xlsx_files(self, temp_paths: list, sheet_count: int = 2, 
+                             col_count: int= 2, row_count: int= 3):
+        '''
+        generates and saves data in provided [temp_paths].
+        args:
+            temp_paths: list of paths to save data to
+            sheet_count: number of sheets each file should have
+            col_count: number of columns sheet will have
+            row_count: number of rows each column will have
+        returns:
+            None
+        '''
+        if sheet_count > 1:
+            for path in temp_paths:
+                with pd.ExcelWriter(path) as writer:
+                    for j in range(sheet_count):
+                        df = self._generate_temp_df(col_count, row_count)
+                        df.to_excel(writer, sheet_name=f'sheet{j}', index=False)
+        elif sheet_count == 1:    
+            for path in temp_paths:
+                df = self._generate_temp_df()
+                df.to_excel(path, index=False)
+        else:
+            raise ValueError(f"invalid sheet count: {sheet_count}")
 
     @staticmethod
-    def _generate_temp_df(col_count: int= 2, row_count: int= 3) -> pd.DataFrame:
+    def _generate_temp_df(col_count: int, row_count: int) -> pd.DataFrame:
+        '''
+        generate a dataframe with specified col and row count.
+        Data filling rows are random integers only
+        args: 
+            col_count: number of columns to populate dataframe with
+            row_count: number of rows to populate dataframe with
+        return:
+            pandas dataframe
+        '''
         return pd.DataFrame(
             {
                 f'col_ {c}': 

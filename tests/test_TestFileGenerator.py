@@ -7,7 +7,6 @@ logging.basicConfig(level=logging.INFO)
 def test_file_creation(init_gen):
     '''
     test and inspect csv creation and data
-    #pytest --log-cli-level=INFO .\tests\test_TestFileGenerator.py
     '''
     assert init_gen.temp_dir is not None
     assert init_gen.temp_dir.exists()
