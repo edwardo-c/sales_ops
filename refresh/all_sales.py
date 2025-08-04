@@ -10,9 +10,6 @@ from pathlib import Path
 def main():
     logger.info(f"running refresh.all_sales.py")
 
-    data_log_path = Path(ALL_SALES_LOG)
-    data_log = RefreshLogger(data_log_path)
-
     try: 
         file_map = [ALLSALES_2025, ALLSALES_2024]
         loader = BaseLoader(file_map)
@@ -27,7 +24,7 @@ def main():
         logger.info(f"all_sales | status=success | rows={len(cleaner.output)}")
 
     except Exception as e:
-        data_log.log('all_sales', 'failed', notes={e})
+        logger.info('all_sales', 'failed', notes={e})
 
 if __name__ == "__main__":
     main()

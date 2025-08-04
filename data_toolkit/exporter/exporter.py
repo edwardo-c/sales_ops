@@ -1,8 +1,10 @@
+from config.paths import DATABASE
 from pathlib import Path
 import shutil
 import tempfile
 from sqlalchemy import create_engine
 import pandas as pd
+
 
 class Exporter():
     def __init__(self, df):
@@ -11,7 +13,7 @@ class Exporter():
     def export_csv(self, df: pd.DataFrame, export_path):
         df.to_csv(export_path, index=False)
 
-    def to_sql(self, engine_url: str, table_name: str, if_exists: str = "replace"):
+    def to_sql(self, table_name: str, engine_url: str = DATABASE, if_exists: str = "replace"):
         engine = create_engine(engine_url)
         self.df.to_sql(
             name=table_name,
