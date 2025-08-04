@@ -6,9 +6,22 @@ import pandas as pd
 import time
 
 class BaseLoader:
+    '''
+    FileMap: {
+        'alias':'my_alias', 
+        'file': 'my_file_path',
+        'sheet_name': 'my_sheet_name',
+        'row': int
+    }
+    '''
     def __init__(self, file_map):
         self.file_map = file_map
         self.data = {}
+
+    @classmethod
+    def from_map_components(cls, alias: str, file: str, sheet_name: str, row: int):
+        file_map = {'alias': alias, 'file': file, 'sheet_name': sheet_name, 'row': row}
+        return cls(file_map)
 
     @staticmethod
     def _read_file(path: Path, file_meta: dict = None) -> pd.DataFrame:
