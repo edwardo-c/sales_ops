@@ -84,7 +84,8 @@ class BaseLoader:
                         path,
                         sheet_name=file_meta.get('sheet_name'),
                         header=file_meta.get('row', 0),
-                        usecols=file_meta.get('usecols', None)
+                        usecols=file_meta.get('usecols', None),
+                        dtype=file_meta.get('dtype', None),
                     )
                 case '.csv':
                     return pd.read_csv(path)
@@ -139,6 +140,7 @@ class BaseLoader:
             file_meta.setdefault('sheet_name', 0)
             file_meta.setdefault('row', 0)
             file_meta.setdefault('usecols', None)
+            file_meta.setdefault('dtype', None)
             return file_meta
 
         # Try converting it to a Path to validate it's a file
@@ -153,7 +155,8 @@ class BaseLoader:
             'file': file_meta,
             'sheet_name': 0,
             'row': 0,
-            'usecols': None
+            'usecols': None,
+            'dtype': None,
         }
 
     @staticmethod
