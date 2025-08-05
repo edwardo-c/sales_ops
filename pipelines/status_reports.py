@@ -4,7 +4,9 @@ from data_toolkit.exporter.exporter import Exporter
 import logging
 import pandas as pd
 
-logging.basicConfig(level=logging.INFO)
+# paste to run during temp: python -m pipelines.status_reports
+
+logging.basicConfig(level=logging.WARNING)
 
 def main():
    pipeline = StatusReportPipeline()
@@ -16,7 +18,8 @@ class StatusReportPipeline():
         self.status_report_benefits = BaseLoader.load_data([
             {'file': STATUS_REPORT_PATH, 'sheet_name': 'benefits'},
             ])
-        # self.fact_table = BaseLoader() #TODO: Load fact table
+        # initial load of fact table, requires cleaning prior to concat
+        self.fact_tables = BaseLoader.load_data([ALLSALES_2024, ALLSALES_2025])
         
     def run(self):
         # used only for inspection, workflow 
@@ -28,6 +31,11 @@ class StatusReportPipeline():
 
         print("\nBenefits Data (head):")
         print(benefits_df.head())
+
+
+        for k, v in self.fact_tables.items():
+            print(f'\nAlias: {k} head: ')
+            print(f'{v.head()}')
 
 
     def load_data(self):

@@ -157,6 +157,11 @@ class BaseLoader:
         }
 
     @staticmethod
+    def concat_data(data: dict):
+        '''Collapses a data dict {'alias': df,} into a single data frame'''
+        return pd.concat(list(data.values()))
+
+    @staticmethod
     def load_data(file_map: list):
         '''
         Reads and returns all files listed in file_map using a temp copy.
