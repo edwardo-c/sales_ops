@@ -1,28 +1,49 @@
-from config.paths import STATUS_REPORT_PATH
+from config.paths import STATUS_REPORT_PATH, ALLSALES_2024, ALLSALES_2025
 from data_toolkit.loaders.base_loader import BaseLoader
 from data_toolkit.exporter.exporter import Exporter
+import pandas as pd
+
+# BaseLoader needs to select columns on import
+# and return single dataframe if needed
 
 
 def main():
-    status_report_customers_to_sql()
+   pipeline = StatusReportPipeline()
+   pipeline.run()
+
+class StatusReportPipeline():
+    def __init__(self):
+        self.benefits_loader = BaseLoader.from_map_components(
+            alias='status_report_benefits', 
+            file=STATUS_REPORT_PATH,
+            sheet_name='benefits',
+            row=0
+        )
+        self.facts_loader = BaseLoader([ALLSALES_2024, ALLSALES_2025])
+        self.benefits_data = pd.DataFrame
+        self.facts_data = pd.DataFrame
+
+    def run(self):
+        self.load_data()
+
+    def load_data(self):
+        self.benefits_data = self.benefits_loader._read_file_with_temp_copy(self.benefits.file_map)
+
+
+    def _prepare_data(self):
+
+        # SQL: inner join benefits and facts:
+        # SQL: agg by category totals():
+        ...
+
+    def _map_data_to_json(self):
+        ...
     
-    # queries to data frame
-    # dataframe to template
+    def _fill_template_with_data(self):
+        ...
 
-def status_report_customers_to_sql():
-    # load the status report customers into sql table
-    base_loader = BaseLoader.from_map_components(
-        alias='status_report_customers',
-        file=STATUS_REPORT_PATH,
-        sheet_name='status_reports',
-        row=0
-    )
-
-    df = base_loader._read_file_with_temp_copy(base_loader.file_map)
-
-    e = Exporter(df)
-    e.to_sql(base_loader.file_map['alias'])
-
+    def _save_report(self):
+        ...
 
 if __name__ == '__main__':
     main()

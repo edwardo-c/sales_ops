@@ -17,6 +17,7 @@ class BaseLoader:
     def __init__(self, file_map):
         self.file_map = file_map
         self.data = {}
+        self.concat_data = pd.DataFrame
 
     @classmethod
     def from_map_components(cls, alias: str, file: str, sheet_name: str, row: int):
@@ -24,14 +25,51 @@ class BaseLoader:
         return cls(file_map)
 
     @staticmethod
+    def _read_temp_file(alias: str, file_path: Path) -> dict:
+        """Backwards-compatible helper for reading a single temp file"""
+        dummy_file_map = {"file": str(file_path), "alias": alias}
+        df = BaseLoader._read_file_with_temp_copy(dummy_file_map)
+        return {alias: df}
+    
+    @staticmethod
+    def _single_dataframe_dir_reader(pattern: str, dir: Path):
+        '''
+        reads files from dir and returns a single dataframe 
+        of the files matching the pattern
+        '''
+        # return a list containing all file names
+        files = list(Path(dir).glob(pattern=pattern, case_sensitive=False))
+
+        # read those file names
+        return pd.concat([pd.read_csv(file) for file in files])
+        
+    @staticmethod
+    def _folder_to_temp_files(src_dir: Path):
+        '''
+        copies all files into a local temp folder
+        args:
+            src_dir: directory to be copied recursively
+        '''
+        if not Path(src_dir).is_dir():
+            raise ValueError(f"src_dir: {src_dir} is not a directory")
+
+        dst_dir = Path(tempfile.mkdtemp())
+
+        return shutil.copytree(src_dir, dst_dir)
+    
+    # ------ Working on clean up of class, these are in use, modify with caution ------ #
+    @staticmethod
     def _read_file(path: Path, file_meta: dict = None) -> pd.DataFrame:
+        '''attempt to read provided file by suffix, only xlsx and csv at this time'''
         try:
             match path.suffix:
                 case '.xlsx':
+                    # TODO: implement usecols in df.read
                     return pd.read_excel(
                         path,
                         sheet_name=file_meta.get('sheet_name'),
-                        header=file_meta.get('row', 0)
+                        header=file_meta.get('row', 0),
+                        usecols=file_meta.get(['usecols'], None)
                     )
                 case '.csv':
                     return pd.read_csv(path)
@@ -73,8 +111,8 @@ class BaseLoader:
             except Exception as e:
                 logger.warning(f"Could not fully clean up temp file: {dst_path}", exc_info=True)
 
-    def load_data(self):
-        """Reads and stores all files listed in file_map using a temp copy"""
+    def load_data(self, concat: bool = False):
+        '''Reads and stores all files listed in file_map using a temp copy'''
         for file_meta in self.file_map:
             try:
                 df = BaseLoader._read_file_with_temp_copy(file_meta)
@@ -82,36 +120,5 @@ class BaseLoader:
             except Exception as e:
                 logger.error(f"Failed to load data for alias '{file_meta['alias']}'", exc_info=True)
 
-    @staticmethod
-    def _read_temp_file(alias: str, file_path: Path) -> dict:
-        """Backwards-compatible helper for reading a single temp file"""
-        dummy_file_map = {"file": str(file_path), "alias": alias}
-        df = BaseLoader._read_file_with_temp_copy(dummy_file_map)
-        return {alias: df}
-    
-    @staticmethod
-    def _single_dataframe_dir_reader(pattern: str, dir: Path):
-        '''
-        reads files from dir and returns a single dataframe 
-        of the files matching the pattern
-        '''
-        # return a list containing all file names
-        files = list(Path(dir).glob(pattern=pattern, case_sensitive=False))
-
-        # read those file names
-        return pd.concat([pd.read_csv(file) for file in files])
-        
-    @staticmethod
-    def _folder_to_temp_files(src_dir: Path):
-        '''
-        copies all files into a local temp folder
-        args:
-            src_dir: directory to be copied recursively
-        '''
-        if not Path(src_dir).is_dir():
-            raise ValueError(f"src_dir: {src_dir} is not a directory")
-
-        dst_dir = Path(tempfile.mkdtemp())
-
-        return shutil.copytree(src_dir, dst_dir)
-
+        if concat:
+            self.concat_data = pd.concat(list(self.data.values()))
