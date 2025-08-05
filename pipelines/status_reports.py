@@ -1,11 +1,10 @@
 from config.paths import STATUS_REPORT_PATH, ALLSALES_2024, ALLSALES_2025
 from data_toolkit.loaders.base_loader import BaseLoader
 from data_toolkit.exporter.exporter import Exporter
+import logging
 import pandas as pd
 
-# BaseLoader needs to select columns on import
-# and return single dataframe if needed
-
+logging.basicConfig(level=logging.INFO)
 
 def main():
    pipeline = StatusReportPipeline()
@@ -13,25 +12,29 @@ def main():
 
 class StatusReportPipeline():
     def __init__(self):
-        self.benefits_loader = BaseLoader.from_map_components(
-            alias='status_report_benefits', 
-            file=STATUS_REPORT_PATH,
-            sheet_name='benefits',
-            row=0
-        )
-        self.facts_loader = BaseLoader([ALLSALES_2024, ALLSALES_2025])
-        self.benefits_data = pd.DataFrame
-        self.facts_data = pd.DataFrame
-
+        self.status_report_customers = BaseLoader.load_data([STATUS_REPORT_PATH])
+        self.status_report_benefits = BaseLoader.load_data([
+            {'file': STATUS_REPORT_PATH, 'sheet_name': 'benefits'},
+            ])
+        # self.fact_table = BaseLoader() #TODO: Load fact table
+        
     def run(self):
-        self.load_data()
+        # used only for inspection, workflow 
+        customer_df = list(self.status_report_customers.values())[0]
+        benefits_df = list(self.status_report_benefits.values())[0]
+
+        print("Customer Data (head):")
+        print(customer_df.head())
+
+        print("\nBenefits Data (head):")
+        print(benefits_df.head())
+
 
     def load_data(self):
-        self.benefits_data = self.benefits_loader._read_file_with_temp_copy(self.benefits.file_map)
-
+        self.benefits_data = self.benefits_loader._read_file_with_temp_copy(
+            self.benefits.file_map)
 
     def _prepare_data(self):
-
         # SQL: inner join benefits and facts:
         # SQL: agg by category totals():
         ...

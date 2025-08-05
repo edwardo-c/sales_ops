@@ -16,20 +16,35 @@ class BaseLoader:
     '''
     def __init__(self, file_map):
         self.file_map = file_map
-        self.data = {}
+        self.data = self.load_data()
         self.concat_data = pd.DataFrame
 
     @classmethod
-    def from_map_components(cls, alias: str, file: str, sheet_name: str, row: int):
-        file_map = {'alias': alias, 'file': file, 'sheet_name': sheet_name, 'row': row}
+    def from_map_components(cls, alias: str, file: str, sheet_name: str, row: int, usecols: list = None):
+        file_map = {
+            'alias': alias, 'file': file, 
+            'sheet_name': sheet_name, 
+            'row': row, 'usecols': usecols
+            }
         return cls(file_map)
 
     @staticmethod
-    def _read_temp_file(alias: str, file_path: Path) -> dict:
-        """Backwards-compatible helper for reading a single temp file"""
-        dummy_file_map = {"file": str(file_path), "alias": alias}
+    def _read_temp_file(file_path: Path, sheet_name: str, usecols: list = None) -> pd.DataFrame:
+        '''
+        Backwards-compatible helper for reading a single temp file
+        args:
+            file_path: file to be read safely
+            sheet_name: sheet name from file path to read
+            usecols: columns to use in returned data frame, default all columns
+        '''
+        dummy_file_map = {
+            'alias': 'dummy', 
+            'file': str(file_path),
+            'sheet_name': sheet_name,
+            'usecols': usecols
+            }
         df = BaseLoader._read_file_with_temp_copy(dummy_file_map)
-        return {alias: df}
+        return df
     
     @staticmethod
     def _single_dataframe_dir_reader(pattern: str, dir: Path):
@@ -69,7 +84,7 @@ class BaseLoader:
                         path,
                         sheet_name=file_meta.get('sheet_name'),
                         header=file_meta.get('row', 0),
-                        usecols=file_meta.get(['usecols'], None)
+                        usecols=file_meta.get('usecols', None)
                     )
                 case '.csv':
                     return pd.read_csv(path)
@@ -111,14 +126,61 @@ class BaseLoader:
             except Exception as e:
                 logger.warning(f"Could not fully clean up temp file: {dst_path}", exc_info=True)
 
-    def load_data(self, concat: bool = False):
-        '''Reads and stores all files listed in file_map using a temp copy'''
-        for file_meta in self.file_map:
-            try:
-                df = BaseLoader._read_file_with_temp_copy(file_meta)
-                self.data[file_meta['alias']] = df
-            except Exception as e:
-                logger.error(f"Failed to load data for alias '{file_meta['alias']}'", exc_info=True)
+    @staticmethod
+    def _standardize_file_meta(file_meta):
+        '''
+        Fills single file paths with dummy file map
+        dependency for reading in this class
+        '''
+        if isinstance(file_meta, dict):
+            # If it's a dictionary, ensure required keys exist
+            file_meta.setdefault('alias', 'dummy')
+            file_meta.setdefault('file', file_meta.get('file')) 
+            file_meta.setdefault('sheet_name', 0)
+            file_meta.setdefault('row', 0)
+            file_meta.setdefault('usecols', None)
+            return file_meta
 
-        if concat:
-            self.concat_data = pd.concat(list(self.data.values()))
+        # Try converting it to a Path to validate it's a file
+        try:
+            Path(file_meta)
+        except TypeError:
+            raise ValueError("Invalid data type passed to _standardize_file_meta")
+
+        # If successful, return a default file_meta dict
+        return {
+            'alias': 'dummy',
+            'file': file_meta,
+            'sheet_name': 0,
+            'row': 0,
+            'usecols': None
+        }
+
+    @staticmethod
+    def load_data(file_map: list):
+        '''
+        Reads and returns all files listed in file_map using a temp copy.
+        
+        Args:
+            file_map: list of file paths or file_meta dicts
+
+        Returns:
+            Dict[str, pd.DataFrame]: alias -> DataFrame
+        '''
+        if not isinstance(file_map, list):
+            raise TypeError("file_map must be a list of file paths or file_meta dictionaries")
+
+        clean_file_meta = [
+            BaseLoader._standardize_file_meta(file_meta)
+            for file_meta in file_map
+        ]
+
+        data_dict = {}
+        for meta in clean_file_meta:
+            try:
+                df = BaseLoader._read_file_with_temp_copy(meta)
+                data_dict[meta['alias']] = df
+            except Exception as e:
+                logger.error(f"Failed to load data for alias '{meta['alias']}': {e}", exc_info=True)
+
+        return data_dict
