@@ -1,78 +1,48 @@
 from data_toolkit.logger import logger
 from pathlib import Path
 import tempfile
-import shutil
+import shutil as sh
 import pandas as pd
 import time
 
 class BaseLoader:
-    '''
-    FileMap: {
-        'alias':'my_alias', 
-        'file': 'my_file_path',
-        'sheet_name': 'my_sheet_name',
-        'row': int
-    }
-    '''
-    def __init__(self, file_map):
-        self.file_map = file_map
+    def __init__(self, *file_details):
+        self.file_details = self._normalize_file_detail(file_details)
         self.data = self.load_data()
         self.concat_data = pd.DataFrame
+        self._all_paths = False
+        self.temp_dir = Path(tempfile.mkdtemp())
 
-    @classmethod
-    def from_map_components(cls, alias: str, file: str, sheet_name: str, row: int, usecols: list = None):
-        file_map = {
-            'alias': alias, 'file': file, 
-            'sheet_name': sheet_name, 
-            'row': row, 'usecols': usecols
-            }
-        return cls(file_map)
+    def __enter__(self):
+        return self
 
-    @staticmethod
-    def _read_temp_file(file_path: Path, sheet_name: str, usecols: list = None) -> pd.DataFrame:
-        '''
-        Backwards-compatible helper for reading a single temp file
-        args:
-            file_path: file to be read safely
-            sheet_name: sheet name from file path to read
-            usecols: columns to use in returned data frame, default all columns
-        '''
-        dummy_file_map = {
-            'alias': 'dummy', 
-            'file': str(file_path),
-            'sheet_name': sheet_name,
-            'usecols': usecols
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # delete temp dir
+        sh.rmtree(self.temp_dir, ignore_errors=True)
+
+    def load_data(self):
+        if self._all_paths: # standardize data structure
+            file_details = self._set_default_file_params()
+        else:
+            file_details = self.file_details
+
+        result = {
+                file_detail['alias']: self._read_file_with_temp_copy(file_detail) 
+                for file_detail in file_details
             }
-        df = BaseLoader._read_file_with_temp_copy(dummy_file_map)
+        return result
+
+    def _read_file_with_temp_copy(self, file_details: dict) -> pd.DataFrame:
+        src_path = Path(file_details['file'])
+        file_meta = file_details['file_meta']
+        dst_path = self.temp_dir / src_path.name
+
+        self._safe_copy_file(src_path, dst_path)
+        df = self._read_file(dst_path, file_meta)
+        logger.info(f"Read {dst_path} successfully as alias '{file_meta['alias']}'")
+
         return df
-    
-    @staticmethod
-    def _single_dataframe_dir_reader(pattern: str, dir: Path):
-        '''
-        reads files from dir and returns a single dataframe 
-        of the files matching the pattern
-        '''
-        # return a list containing all file names
-        files = list(Path(dir).glob(pattern=pattern, case_sensitive=False))
 
-        # read those file names
-        return pd.concat([pd.read_csv(file) for file in files])
-        
-    @staticmethod
-    def _folder_to_temp_files(src_dir: Path):
-        '''
-        copies all files into a local temp folder
-        args:
-            src_dir: directory to be copied recursively
-        '''
-        if not Path(src_dir).is_dir():
-            raise ValueError(f"src_dir: {src_dir} is not a directory")
-
-        dst_dir = Path(tempfile.mkdtemp())
-
-        return shutil.copytree(src_dir, dst_dir)
-    
-    # ------ Working on clean up of class, these are in use, modify with caution ------ #
     @staticmethod
     def _read_file(path: Path, file_meta: dict = None) -> pd.DataFrame:
         '''attempt to read provided file by suffix, only xlsx and csv at this time'''
@@ -100,7 +70,7 @@ class BaseLoader:
         for attempt in range(retries):
             try:
                 logger.debug(f"Attempting to copy {src} to {dst} (Attempt {attempt + 1})")
-                shutil.copy2(src, dst)
+                sh.copy2(src, dst)
                 logger.info(f"Copied {src.name} to temp dir")
                 return
             except PermissionError:
@@ -110,85 +80,49 @@ class BaseLoader:
         raise PermissionError(f"Could not copy {src} after {retries} attempts")
 
     @staticmethod
-    def _read_file_with_temp_copy(file_meta: dict) -> pd.DataFrame:
-        src_path = Path(file_meta['file'])
-        temp_dir = Path(tempfile.mkdtemp())
-        dst_path = temp_dir / src_path.name
-
-        try:
-            BaseLoader._safe_copy_file(src_path, dst_path)
-            df = BaseLoader._read_file(dst_path, file_meta)
-            logger.info(f"Read {dst_path} successfully as alias '{file_meta['alias']}'")
-            return df
-        finally:
-            try:
-                dst_path.unlink(missing_ok=True)
-                temp_dir.rmdir()
-            except Exception as e:
-                logger.warning(f"Could not fully clean up temp file: {dst_path}", exc_info=True)
-
-    @staticmethod
-    def _standardize_file_meta(file_meta):
-        '''
-        Fills single file paths with dummy file map
-        dependency for reading in this class
-        '''
-        if isinstance(file_meta, dict):
-            # If it's a dictionary, ensure required keys exist
-            file_meta.setdefault('alias', 'dummy')
-            file_meta.setdefault('file', file_meta.get('file')) 
-            file_meta.setdefault('sheet_name', 0)
-            file_meta.setdefault('row', 0)
-            file_meta.setdefault('usecols', None)
-            file_meta.setdefault('dtype', None)
-            return file_meta
-
-        # Try converting it to a Path to validate it's a file
-        try:
-            Path(file_meta)
-        except TypeError:
-            raise ValueError("Invalid data type passed to _standardize_file_meta")
-
-        # If successful, return a default file_meta dict
+    def _default_file_params(self, detail):
         return {
-            'alias': 'dummy',
-            'file': file_meta,
-            'sheet_name': 0,
-            'row': 0,
-            'usecols': None,
-            'dtype': None,
+            'file': detail,
+            'alias': Path(detail).stem,
         }
 
     @staticmethod
-    def concat_data(data: dict):
-        '''Collapses a data dict {'alias': df,} into a single data frame'''
-        return pd.concat(list(data.values()))
-
-    @staticmethod
-    def load_data(file_map: list):
+    def _normalize_file_detail(detail):
         '''
-        Reads and returns all files listed in file_map using a temp copy.
-        
-        Args:
-            file_map: list of file paths or file_meta dicts
-
-        Returns:
-            Dict[str, pd.DataFrame]: alias -> DataFrame
+        Ensures every input becomes a standardized file map:
+        {
+            'file': path,
+            'file_meta': {
+                'alias': ...,
+                'sheet_name': ...,
+                ...
+            }
+        }
         '''
-        if not isinstance(file_map, list):
-            raise TypeError("file_map must be a list of file paths or file_meta dictionaries")
+        if isinstance(detail, str):
+            if not Path(detail).is_file():
+                raise FileNotFoundError(f"File does not exist: {detail}")
+            return {
+                'file': detail,
+                'file_meta': BaseLoader._default_file_params(detail)
+            }
 
-        clean_file_meta = [
-            BaseLoader._standardize_file_meta(file_meta)
-            for file_meta in file_map
-        ]
+        elif isinstance(detail, dict):
+            file_path = detail.get('file')
+            if not file_path:
+                raise ValueError(f"Missing 'file' key in: {detail}")
+            if not Path(file_path).is_file():
+                raise FileNotFoundError(f"File does not exist: {file_path}")
 
-        data_dict = {}
-        for meta in clean_file_meta:
-            try:
-                df = BaseLoader._read_file_with_temp_copy(meta)
-                data_dict[meta['alias']] = df
-            except Exception as e:
-                logger.error(f"Failed to load data for alias '{meta['alias']}': {e}", exc_info=True)
+            # Merge default params with overrides from the user
+            default_meta = BaseLoader._default_file_params(file_path)
+            user_meta = detail.get('file_meta', {})
+            default_meta.update(user_meta)
 
-        return data_dict
+            return {
+                'file': file_path,
+                'file_meta': default_meta
+            }
+
+        else:
+            raise TypeError("Each input must be a str (file path) or dict (file plan).")

@@ -1,5 +1,6 @@
 from config.paths import STATUS_REPORT_PATH, ALLSALES_2024, ALLSALES_2025
 from data_toolkit.loaders.base_loader import BaseLoader
+from data_toolkit.cleaning.cleaner import Cleaner
 from data_toolkit.exporter.exporter import Exporter
 import logging
 import pandas as pd
@@ -14,7 +15,18 @@ def main():
 
 class StatusReportPipeline():
     def __init__(self):
-        self.status_report_customers = BaseLoader.load_data([STATUS_REPORT_PATH])
+        allsales_2025_usecols = [
+            'Customer Account Number', 'Inventory CD', 
+            'Classification(Sales Category)', 
+            'Qty', 'Amount', 'Invoice Date'
+            ]
+        
+
+        self.status_report_customers = BaseLoader.load_data([
+            {
+                'file': STATUS_REPORT_PATH, 'alias': 'allsales_2025',
+                'sheet_name': "2025", 'row': 10, 'usecols': allsales_2025_usecols, 
+            }])
         self.status_report_benefits = BaseLoader.load_data([
             {'file': STATUS_REPORT_PATH, 'sheet_name': 'benefits'},
             ])
@@ -22,7 +34,13 @@ class StatusReportPipeline():
         self.fact_tables = BaseLoader.load_data([ALLSALES_2024, ALLSALES_2025])
         
     def run(self):
-        # used only for inspection, workflow 
+        # clean fact table in order to concat
+            # rename columns
+            # consolidate data
+        cleaner = Cleaner(self.fact_tables)
+
+
+        # --- used only for inspection, workflow --- #
         customer_df = list(self.status_report_customers.values())[0]
         benefits_df = list(self.status_report_benefits.values())[0]
 

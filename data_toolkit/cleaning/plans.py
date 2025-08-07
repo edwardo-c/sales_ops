@@ -46,8 +46,8 @@ order of plan execution:
     extract_year: extract the month number from column (v)
 '''
 STATUS_REPORT_PLAN = {
-    2025: {'rename_columns': '', 'join': 'inner'},
-    2024: {'rename_columns': '', 'join': 'inner'},
+    'allsales_2025': {'rename_columns': '', 'join': 'inner'},
+    'allsales_2024': {'rename_columns': '', 'join': 'inner'},
     'concat':{
         'fill_empty': {'part_number': 'category'},
         'extract_month': 'invoice_date',
