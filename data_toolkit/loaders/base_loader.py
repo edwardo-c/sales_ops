@@ -7,12 +7,11 @@ import time
 
 class BaseLoader:
     def __init__(self, *file_details):
-        self.file_details = self._normalize_file_detail(file_details)
-        self.data = self.load_data()
-        self.concat_data = pd.DataFrame
-        self._all_paths = False
         self.temp_dir = Path(tempfile.mkdtemp())
-
+        self.file_details = [self._normalize_file_detail(d) for d in file_details]
+        self.data = [self._read_file_with_temp_copy(d) for d in self.file_details]
+        self.concat_data = pd.DataFrame
+        
     def __enter__(self):
         return self
 
@@ -21,14 +20,10 @@ class BaseLoader:
         sh.rmtree(self.temp_dir, ignore_errors=True)
 
     def load_data(self):
-        if self._all_paths: # standardize data structure
-            file_details = self._set_default_file_params()
-        else:
-            file_details = self.file_details
 
         result = {
                 file_detail['alias']: self._read_file_with_temp_copy(file_detail) 
-                for file_detail in file_details
+                for file_detail in self.file_details
             }
         return result
 
@@ -41,7 +36,7 @@ class BaseLoader:
         df = self._read_file(dst_path, file_meta)
         logger.info(f"Read {dst_path} successfully as alias '{file_meta['alias']}'")
 
-        return df
+        return {'alias': file_meta['alias'], 'data' : df}
 
     @staticmethod
     def _read_file(path: Path, file_meta: dict = None) -> pd.DataFrame:
@@ -80,7 +75,7 @@ class BaseLoader:
         raise PermissionError(f"Could not copy {src} after {retries} attempts")
 
     @staticmethod
-    def _default_file_params(self, detail):
+    def _default_file_params(detail):
         return {
             'file': detail,
             'alias': Path(detail).stem,
@@ -125,4 +120,5 @@ class BaseLoader:
             }
 
         else:
-            raise TypeError("Each input must be a str (file path) or dict (file plan).")
+            raise TypeError(
+                f"Each input must be a str (file path) or dict (file plan), recieved {type(detail)}")

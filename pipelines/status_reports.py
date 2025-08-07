@@ -1,7 +1,11 @@
-from config.paths import STATUS_REPORT_PATH, ALLSALES_2024, ALLSALES_2025
+from data_toolkit.plans.file_reader_details import (
+    STATUS_REPORT_SALES_2024, 
+    STATUS_REPORT_SALES_2025,
+    STATUS_REPORT_CUSTOMERS,
+    STATUS_REPORT_BENEFITS
+) 
 from data_toolkit.loaders.base_loader import BaseLoader
 from data_toolkit.cleaning.cleaner import Cleaner
-from data_toolkit.exporter.exporter import Exporter
 import logging
 import pandas as pd
 
@@ -13,52 +17,31 @@ def main():
    pipeline = StatusReportPipeline()
    pipeline.run()
 
+# benefits, customers, sales
+
 class StatusReportPipeline():
     def __init__(self):
-        allsales_2025_usecols = [
-            'Customer Account Number', 'Inventory CD', 
-            'Classification(Sales Category)', 
-            'Qty', 'Amount', 'Invoice Date'
-            ]
-        
-
-        self.status_report_customers = BaseLoader.load_data([
-            {
-                'file': STATUS_REPORT_PATH, 'alias': 'allsales_2025',
-                'sheet_name': "2025", 'row': 10, 'usecols': allsales_2025_usecols, 
-            }])
-        self.status_report_benefits = BaseLoader.load_data([
-            {'file': STATUS_REPORT_PATH, 'sheet_name': 'benefits'},
-            ])
-        # initial load of fact table, requires cleaning prior to concat
-        self.fact_tables = BaseLoader.load_data([ALLSALES_2024, ALLSALES_2025])
+        self.data = BaseLoader(
+            STATUS_REPORT_SALES_2024, 
+            STATUS_REPORT_SALES_2025,
+            STATUS_REPORT_CUSTOMERS,
+            STATUS_REPORT_BENEFITS
+            )
         
     def run(self):
+        data = self.data.data
+
         # clean fact table in order to concat
             # rename columns
             # consolidate data
-        cleaner = Cleaner(self.fact_tables)
-
 
         # --- used only for inspection, workflow --- #
-        customer_df = list(self.status_report_customers.values())[0]
-        benefits_df = list(self.status_report_benefits.values())[0]
-
-        print("Customer Data (head):")
-        print(customer_df.head())
-
-        print("\nBenefits Data (head):")
-        print(benefits_df.head())
-
-
-        for k, v in self.fact_tables.items():
-            print(f'\nAlias: {k} head: ')
-            print(f'{v.head()}')
-
-
-    def load_data(self):
-        self.benefits_data = self.benefits_loader._read_file_with_temp_copy(
-            self.benefits.file_map)
+        for d in data:
+            try: 
+                print(f"\nDataframe head for {d['alias']}: ")
+                print(f"\n{d['data'].head()}")
+            except Exception as e:
+                raise ValueError(f"Expected dictionary, recieved {type(d)}")
 
     def _prepare_data(self):
         # SQL: inner join benefits and facts:
