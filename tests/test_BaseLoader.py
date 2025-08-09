@@ -1,4 +1,4 @@
-from data_toolkit.loaders.base_loader import BaseLoader
+from data_toolkit.base_loader import BaseLoader
 from pathlib import Path
 import shutil
 import tempfile

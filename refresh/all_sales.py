@@ -1,8 +1,8 @@
 from data_toolkit.logger import logger
 from config.paths import ALLSALES_2025, ALLSALES_2024, DATABASE, ALL_SALES_LOG
 from data_toolkit.refresh_logger.refresh_logger import RefreshLogger
-from data_toolkit.loaders.base_loader import BaseLoader
-from data_toolkit.cleaning.plans import PLAN_DIRECT_SALES_ACU
+from data_toolkit.base_loader import BaseLoader
+from data_toolkit.plans.plans import PLAN_DIRECT_SALES_ACU
 from data_toolkit.cleaning.cleaner import Cleaner
 from data_toolkit.exporter.exporter import Exporter
 from pathlib import Path

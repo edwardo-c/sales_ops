@@ -1,5 +1,5 @@
 from config.paths import PRICE_CLASS_EXPORTS_DIR
-from data_toolkit.loaders.base_loader import BaseLoader
+from data_toolkit.base_loader import BaseLoader
 from data_toolkit.converter import ExcelConverter
 from data_toolkit.transformer.transformer import Transformer
 import shutil
