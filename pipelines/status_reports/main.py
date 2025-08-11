@@ -4,10 +4,12 @@ from data_toolkit.plans.file_reader_details import (
     STATUS_REPORT_CUSTOMERS,
     STATUS_REPORT_BENEFITS
 )
+from config.paths import DATABASE
 from data_toolkit.base_loader import BaseLoader
 from data_toolkit.dataplan import transforms  # noqa: triggers auto-registration
 from data_toolkit.dataplan.registry import GLOBAL_REGISTRY, build_registry
 from data_toolkit.dataplan.executor import DataPlanExecutor
+from data_toolkit.exporter import Exporter
 import logging
 import pandas as pd
 
@@ -66,10 +68,10 @@ def main():
     # prepare sales data
     executor = DataPlanExecutor(data, plans, registry=project_registry, strict=False)
     # create all sales data frame
-    all_sales_data = {"all_sales": pd.concat([executor.processed_data["allsales_2025"], executor.processed_data["allsales_2024"]])}
+    temp_all_sales = {"all_sales": pd.concat([executor.processed_data["allsales_2025"], executor.processed_data["allsales_2024"]])}
 
     # add all sales data to be processed
-    executor.processed_data.update(all_sales_data)
+    executor.processed_data.update(temp_all_sales)
     processed = executor.processed_data
 
     all_sales_plan = {
@@ -94,22 +96,25 @@ def main():
                                           registry=project_registry, strict=False)
     
     # capture data to be imported into mssql
-    all_sales = all_sales_executor.processed_data["all_sales"]
+    all_sales_data = all_sales_executor.processed_data["all_sales"]
     customers = all_sales_executor.processed_data["customers"]
 
-    # Inspect
-    inspect = [all_sales, customers] 
-    for i in inspect:
-        print(i.head())
+    # prep import to mssql
+    all_sales_exporter = Exporter(all_sales_data)
+    all_sales_exporter.to_sql(
+        table_name="status_report_all_sales",
+        engine_url=DATABASE,
+        if_exists="replace"
+    )
+
+    customers_exporter = Exporter(customers)
+    customers_exporter.to_sql(
+        table_name="status_report_customers",
+        engine_url=DATABASE,
+        if_exists="replace"
+    )
 
 if __name__ == '__main__':
     main()
 
 # paste to run during temp: python -m pipelines.status_reports.main
-
-
-
-'''
-order of plan execution:  
-    add static year column to each
-'''
