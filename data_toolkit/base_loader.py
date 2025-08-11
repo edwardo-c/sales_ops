@@ -9,8 +9,8 @@ class BaseLoader:
     def __init__(self, *file_details):
         self.temp_dir = Path(tempfile.mkdtemp())
         self.file_details = [self._normalize_file_detail(d) for d in file_details]
-        self.data = [self._read_file_with_temp_copy(d) for d in self.file_details]
-        self.concat_data = pd.DataFrame
+        self.data = self.load_data()
+        self.concat_data = pd.DataFrame()
         
     def __enter__(self):
         return self
@@ -20,11 +20,11 @@ class BaseLoader:
         sh.rmtree(self.temp_dir, ignore_errors=True)
 
     def load_data(self):
-
-        result = {
-                file_detail['alias']: self._read_file_with_temp_copy(file_detail) 
-                for file_detail in self.file_details
-            }
+        result = {}
+        for file_detail in self.file_details:
+            df = self._read_file_with_temp_copy(file_detail)
+            alias = file_detail['file_meta']['alias']
+            result[alias] = df
         return result
 
     def _read_file_with_temp_copy(self, file_details: dict) -> pd.DataFrame:
@@ -36,7 +36,7 @@ class BaseLoader:
         df = self._read_file(dst_path, file_meta)
         logger.info(f"Read {dst_path} successfully as alias '{file_meta['alias']}'")
 
-        return {'alias': file_meta['alias'], 'data' : df}
+        return df
 
     @staticmethod
     def _read_file(path: Path, file_meta: dict = None) -> pd.DataFrame:
