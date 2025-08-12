@@ -8,12 +8,12 @@ def filter_in(df: pd.DataFrame, cfg: dict):
     cfg:
         column: str                 # e.g., "product_category
         values: list[str]           # e.g, ["mounts", "dvled", "kiosk", "dvled"]
-        case_insensative: bool = True
+        case_insensitive: bool = True
         keep_na: bool = False       # if True, NaNs are retained  
     """
     col = cfg["column"]
     values = cfg["values"]
-    case_insensitive = cfg.get("case_insensative", True)
+    case_insensitive = cfg.get("case_insensitive", True)
     keep_na = cfg.get("keep_na", False)
 
     if col not in df.columns:

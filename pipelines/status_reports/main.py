@@ -83,15 +83,18 @@ def main():
                     "values": ["mount", "tv", "kiosk", "dvled"],
                     "case_insensitive": True,
                     "keep_na": False
-                    },
+                },
+            },
+            {
                 "op": "drop",
                 "args": {
                     "keep":["acct_num", "product_category", "invoice_year", "amount"],
                     }
-                },
-            ]
-        }
+            },
+        ]
+    }
 
+    # process plan
     all_sales_executor = DataPlanExecutor(processed, all_sales_plan,
                                           registry=project_registry, strict=False)
     
