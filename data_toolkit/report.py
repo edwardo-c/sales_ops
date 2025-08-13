@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, text
 import pandas as pd
 from pathlib import Path
+from openpyxl import load_workbook
 import json
 import re
 
@@ -22,7 +23,7 @@ class ReportBuilder:
 
     def run(self):
         # for now, just show what we pulled + mapping available
-        print(self.data.head())
+        print(self.data.columns)
         print(self.mapping)
 
     def _load_mapping(self, mapping_path):
@@ -61,5 +62,85 @@ class ReportBuilder:
             filename = f"{row[id_col]}.xlsx" if id_col in row else "report.xlsx"
             yield row, filename
 
-        
-# python -m pipelines.status_reports.main
+    def _value_for_field(self, row: dict, field: str):
+        """Resolve values for both data fields and mapping metadata."""
+        if field in row:
+            return row[field]
+        # simple metadata examples (adjust as you like)
+        if field == "header":
+            return "Status Report"
+        if field == "timeframe":
+            cur = self.query_params.get("current_year")
+            prev = self.query_params.get("previous_year")
+            return f"{prev} vs {cur}"
+        return None
+
+    @staticmethod
+    def _apply_format(ws, cell_ref: str, value, field_name: str):
+        """Basic formatting: percents and currency."""
+        cell = ws[cell_ref]
+        cell.value = value
+
+        if value is None:
+            return
+
+        # percent columns: treat values like 0.06 => 6%
+        if isinstance(value, (int, float)) and "percent" in field_name.lower():
+            cell.number_format = "0.0%"
+
+        # currency-like: goals and year totals
+        if isinstance(value, (int, float)):
+            is_goal = field_name.endswith("_goal")
+            is_total = field_name.startswith(("previous_year_", "current_year_"))
+            if is_goal or is_total:
+                cell.number_format = '"$"#,##0;[Red]"$"#,##0'
+
+    def write_excel_for_row(
+        self,
+        row: dict,
+        template_path: str | Path,
+        out_path: str | Path,
+        sheet_name: str | None = None,
+    ):
+        """Write one Excel file using a template and the JSON cell mapping."""
+        wb = load_workbook(template_path)
+        ws = wb[sheet_name] if sheet_name else wb.active
+
+        # fill cells from mapping
+        for cell, field in self._iter_cell_field_pairs():
+            val = self._value_for_field(row, field)
+            self._apply_format(ws, cell, val, field)
+
+        # suggest a filename
+        acct = row.get("acct_num", "report")
+        out_path = Path(out_path)
+        out_path.mkdir(parents=True, exist_ok=True)
+        filepath = out_path / f"{acct}_status_report.xlsx"
+        wb.save(filepath)
+        wb.close()
+        return filepath
+
+    def export_all_reports(
+        self,
+        template_path: str | Path,
+        out_dir: str | Path,
+        sheet_name: str | None = None,
+        id_col: str = "acct_num",
+        limit: int | None = None,
+    ):
+        """Generate one workbook per row. Returns list of paths."""
+        paths = []
+        count = 0
+        for row in self.data.to_dict("records"):
+            paths.append(
+                self.write_excel_for_row(
+                    row=row,
+                    template_path=template_path,
+                    out_path=out_dir,
+                    sheet_name=sheet_name,
+                )
+            )
+            count += 1
+            if limit and count >= limit:
+                break
+        return paths

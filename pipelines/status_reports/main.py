@@ -1,11 +1,26 @@
 from data_toolkit.report import ReportBuilder
-from config.paths import STATUS_REPORT_QUERY, STATUS_REPORT_JSON_PATH, DATABASE
+from data_toolkit.exporter import Exporter
+from config.paths import (
+    STATUS_REPORT_QUERY, 
+    STATUS_REPORT_JSON_PATH, 
+    DATABASE,
+    STATUS_REPORT_TEMPLATE_PATH,
+    STATUS_REPORT_DIR,
+    STATUS_REPORT_DIMENSIONS
+)
+import pandas as pd
+
 
 def main():
     print(f"running statusreports.main")
 
-    # refresh 'status_report_all_sales' table in sql
+    # refresh sql table status_report_all_sales
     # r = RefreshAllSales()
+
+    # refresh sql table std_cat_customers 
+    df = pd.read_excel(STATUS_REPORT_DIMENSIONS, sheet_name="std_cat_customers")
+    e = Exporter(df)
+    e.to_sql("std_cat_customers", DATABASE, if_exists="replace")
 
     rb = ReportBuilder(
     query_path=STATUS_REPORT_QUERY,
@@ -14,12 +29,14 @@ def main():
     query_params={"current_year": 2025, "previous_year": 2024},
     convert_at_params=True  # convert @vars in the .sql to :vars for SQLAlchemy
     )
-    rb.run()
 
-    for row, fname in rb.iter_reports(id_col="acct_num"):
-        # Here you’d call write_to_template(row, template_path, out_path, ...)
-        # e.g., ws[cell] = row[field] for each (cell, field) in _iter_cell_field_pairs()
-        print("Would write file:", fname)
+    outputs = rb.export_all_reports(
+        template_path=STATUS_REPORT_TEMPLATE_PATH,
+        out_dir=STATUS_REPORT_DIR,
+        sheet_name="Summary"
+    )
+
+    print(f"created {len(outputs)} files")
 
 if __name__ == '__main__':
     main()
