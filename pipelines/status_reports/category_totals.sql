@@ -1,45 +1,37 @@
--- tables: status_report_all_sales, status_report_customers
+CREATE OR ALTER PROCEDURE dbo.usp_StatusReportPivot
+  @current_year  INT,
+  @previous_year INT
+AS
+BEGIN
+  SET NOCOUNT ON;
 
--- return yearly product category totals for customers only in status_report customers
--- return 0 if a customer does not have data for a specific category
-WITH
-    filtered_customers AS (
-        SELECT
-            s.acct_num,
-            s.product_category,
-            s.invoice_year,
-            s.amount 
-        FROM status_report_all_sales s
-        INNER JOIN status_report_customers c
-            ON c.acct_num = s.acct_num
-    ),  
-    categories AS (
-        SELECT 'mount' as product_category
-        UNION ALL SELECT 'tv'
-        UNION ALL SELECT 'dvled'
-        UNION ALL SELECT 'kiosk'
-    ),
-    all_combinations AS (
-        SELECT DISTINCT
-            fc.acct_num,
-            cat.product_category,
-            fc.invoice_year
-            FROM (SELECT DISTINCT acct_num, invoice_year FROM filtered_customers) fc
-        CROSS JOIN categories cat
-    ) 
-SELECT
-    ac.acct_num,
-    ac.product_category,
-    ac.invoice_year,
-    ROUND(COALESCE(SUM(fc.amount), 0), 2) AS CategoryTotal
-FROM all_combinations ac
-LEFT JOIN filtered_customers fc
-    ON 
-        ac.acct_num = fc.acct_num
-        AND ac.product_category = fc.product_category
-        AND ac.invoice_year = fc.invoice_year
-GROUP BY ac.acct_num, ac.product_category, ac.invoice_year
-ORDER BY ac.acct_num, ac.invoice_year, ac.product_category 
-
-
-
+  WITH filtered AS (
+    SELECT
+      s.acct_num,
+      CASE
+        WHEN LOWER(s.product_category) IN ('mount','mounts') THEN 'mounts'
+        WHEN LOWER(s.product_category) IN ('tv','tech')       THEN 'tech'
+        WHEN LOWER(s.product_category) IN ('kiosk','kiosks')  THEN 'kiosks'
+        WHEN LOWER(s.product_category) = 'dvled'              THEN 'dvled'
+        ELSE LOWER(s.product_category)
+      END AS product_category,
+      s.invoice_year,
+      s.amount
+    FROM status_report_all_sales s
+    INNER JOIN status_report_customers c
+      ON c.acct_num = s.acct_num
+  )
+  SELECT
+    f.acct_num,
+    ISNULL(SUM(CASE WHEN invoice_year = @previous_year AND product_category='mounts' THEN amount END),0) AS previous_year_mounts,
+    ISNULL(SUM(CASE WHEN invoice_year = @previous_year AND product_category='tech'   THEN amount END),0) AS previous_year_tech,
+    ISNULL(SUM(CASE WHEN invoice_year = @previous_year AND product_category='kiosks' THEN amount END),0) AS previous_year_kiosks,
+    ISNULL(SUM(CASE WHEN invoice_year = @previous_year AND product_category='dvled'  THEN amount END),0) AS previous_year_dvled,
+    ISNULL(SUM(CASE WHEN invoice_year = @current_year  AND product_category='mounts' THEN amount END),0) AS current_year_mounts,
+    ISNULL(SUM(CASE WHEN invoice_year = @current_year  AND product_category='tech'   THEN amount END),0) AS current_year_tech,
+    ISNULL(SUM(CASE WHEN invoice_year = @current_year  AND product_category='kiosks' THEN amount END),0) AS current_year_kiosks,
+    ISNULL(SUM(CASE WHEN invoice_year = @current_year  AND product_category='dvled'  THEN amount END),0) AS current_year_dvled
+  FROM filtered f
+  GROUP BY f.acct_num
+  ORDER BY f.acct_num;
+END

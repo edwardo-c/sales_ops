@@ -1,133 +1,25 @@
-from data_toolkit.plans.file_reader_details import (
-    STATUS_REPORT_SALES_2024, 
-    STATUS_REPORT_SALES_2025,
-    STATUS_REPORT_CUSTOMERS,
-    STATUS_REPORT_BENEFITS
-)
-from config.paths import DATABASE, STATUS_REPORT_QUERY
-from data_toolkit.base_loader import BaseLoader
-from data_toolkit.dataplan import transforms  # noqa: triggers auto-registration
-from data_toolkit.dataplan.registry import GLOBAL_REGISTRY, build_registry
-from data_toolkit.dataplan.executor import DataPlanExecutor
-from data_toolkit.exporter import Exporter
-import logging
-import pandas as pd
-from pathlib import Path
-from sqlalchemy import create_engine, text
-
-logging.basicConfig(level=logging.WARNING)
-
-project_registry = build_registry(
-    include=[
-        "rename_columns", "filter_in", 
-        "static_value", "drop"
-        ]
-)
+from data_toolkit.report import ReportBuilder
+from config.paths import STATUS_REPORT_QUERY, STATUS_REPORT_JSON_PATH, DATABASE
 
 def main():
-    # print("loading...")
-    # base_loader = BaseLoader(
-    #     STATUS_REPORT_SALES_2024, 
-    #     STATUS_REPORT_SALES_2025, 
-    #     STATUS_REPORT_CUSTOMERS, 
-    #     STATUS_REPORT_BENEFITS
-    #     )
-    
-    # data = base_loader.data
+    print(f"running statusreports.main")
 
-    # plans = {
-    #     "allsales_2025": [
-    #         {
-    #             "op": "rename_columns",
-    #             "args": {
-    #                 "Customer Account Number": "acct_num",
-    #                 "Amount": "amount",
-    #                 "Classification(Sales Category)": "product_category",
-    #             },
-    #         },
-    #         {
-    #             "op": "static_value",
-    #             "args": {"value": 2025, "col_name": "invoice_year"},
-    #         },
-    #     ],
-    #     "allsales_2024": [
-    #         {
-    #             "op": "rename_columns",
-    #             "args": {
-    #                 "Account No.": "acct_num",
-    #                 "Amount": "amount",
-    #                 "Category": "product_category",
-    #             },
-    #         },
-    #         {
-    #             "op": "static_value",
-    #             "args": {"value": 2024, "col_name": "invoice_year"},
-    #         },
-    #     ],
-    # }   
+    # refresh 'status_report_all_sales' table in sql
+    # r = RefreshAllSales()
 
+    rb = ReportBuilder(
+    query_path=STATUS_REPORT_QUERY,
+    mapping_path=STATUS_REPORT_JSON_PATH,
+    db=DATABASE,
+    query_params={"current_year": 2025, "previous_year": 2024},
+    convert_at_params=True  # convert @vars in the .sql to :vars for SQLAlchemy
+    )
+    rb.run()
 
-    # # prepare sales data
-    # executor = DataPlanExecutor(data, plans, registry=project_registry, strict=False)
-    # # create all sales data frame
-    # temp_all_sales = {"all_sales": pd.concat([executor.processed_data["allsales_2025"], executor.processed_data["allsales_2024"]])}
-
-    # # add all sales data to be processed
-    # executor.processed_data.update(temp_all_sales)
-    # processed = executor.processed_data
-
-    # all_sales_plan = {
-    #     "all_sales": [
-    #         {
-    #             "op": "filter_in",
-    #             "args": {
-    #                 "column": "product_category",
-    #                 "values": ["mount", "tv", "kiosk", "dvled"],
-    #                 "case_insensitive": True,
-    #                 "keep_na": False
-    #             },
-    #         },
-    #         {
-    #             "op": "drop",
-    #             "args": {
-    #                 "keep":["acct_num", "product_category", "invoice_year", "amount"],
-    #                 }
-    #         },
-    #     ]
-    # }
-
-    # # process plan
-    # all_sales_executor = DataPlanExecutor(processed, all_sales_plan,
-    #                                       registry=project_registry, strict=False)
-    
-    # # capture data to be imported into mssql
-    # all_sales_data = all_sales_executor.processed_data["all_sales"]
-    # customers = all_sales_executor.processed_data["customers"]
-
-    # # prep import to mssql
-    # all_sales_exporter = Exporter(all_sales_data)
-    # all_sales_exporter.to_sql(
-    #     table_name="status_report_all_sales",
-    #     engine_url=DATABASE,
-    #     if_exists="replace"
-    # )
-
-    # customers_exporter = Exporter(customers)
-    # customers_exporter.to_sql(
-    #     table_name="status_report_customers",
-    #     engine_url=DATABASE,
-    #     if_exists="replace"
-    # )
-
-    # query database and capture data frame
-    query = Path(STATUS_REPORT_QUERY).read_text(encoding="UTF-8")
-    
-    engine = create_engine(DATABASE)
-    with engine.begin() as conn:
-        results_df = pd.read_sql_query(text(query), conn)
-    
-    print(results_df.head())
-
+    for row, fname in rb.iter_reports(id_col="acct_num"):
+        # Here you’d call write_to_template(row, template_path, out_path, ...)
+        # e.g., ws[cell] = row[field] for each (cell, field) in _iter_cell_field_pairs()
+        print("Would write file:", fname)
 
 if __name__ == '__main__':
     main()
